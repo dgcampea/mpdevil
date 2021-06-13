@@ -2053,6 +2053,7 @@ class GenreSelect(Gtk.ComboBoxText):
 		self.append_text(_("all genres"))
 #		for genre in self._client.comp_list("genre"):
 #			self.append_text(genre)
+		print("omit genres")
 		self.set_active(0)
 		self.handler_unblock(self._changed)
 
