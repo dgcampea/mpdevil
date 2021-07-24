@@ -29,6 +29,7 @@ import datetime
 import os
 import sys
 import re
+import collections.abc
 import locale
 try:
 	locale.setlocale(locale.LC_ALL, "")
@@ -45,6 +46,9 @@ VERSION="1.3.0"  # sync with setup.py
 COVER_REGEX=r"^\.?(album|cover|folder|front).*\.(gif|jpeg|jpg|png)$"
 FALLBACK_COVER=Gtk.IconTheme.get_default().lookup_icon("media-optical", 128, Gtk.IconLookupFlags.FORCE_SVG).get_filename()
 
+# TODO:
+from structures import *
+### end TODO
 
 #########
 # MPRIS #
@@ -443,10 +447,11 @@ class MPRISInterface:  # TODO emit Seeked if needed
 
 class ClientHelper():
 	def seconds_to_display_time(seconds):
-		delta=datetime.timedelta(seconds=seconds)
+		# discard fractional part
+		delta=datetime.timedelta(seconds=int(float(seconds)))
 		if delta.days > 0:
 			days=ngettext("{days} day", "{days} days", delta.days).format(days=delta.days)
-			time_string=f"{days}, {datetime.timedelta(seconds=delta.seconds)}"
+			time_string=f"{days}, {str(delta - datetime.timedelta(delta.days))}"
 		else:
 			time_string=str(delta).lstrip("0").lstrip(":")
 		return time_string.replace(":", "∶")  # use 'ratio' as delimiter
@@ -467,15 +472,6 @@ class ClientHelper():
 		channels=ngettext("{channels} channel", "{channels} channels", int_chan).format(channels=int_chan)
 		return f"{freq} kHz • {bits} bit • {channels}"
 
-	def song_to_str_dict(song):  # converts tags with multiple values to comma separated strings
-		return_song={}
-		for tag, value in song.items():
-			if isinstance(value, list):
-				return_song[tag]=(", ".join(value))
-			else:
-				return_song[tag]=value
-		return return_song
-
 	def song_to_first_str_dict(song):  # extracts the first value of multiple value tags
 		return_song={}
 		for tag, value in song.items():
@@ -494,23 +490,10 @@ class ClientHelper():
 				return_song[tag]=[value]
 		return return_song
 
-	def pepare_song_for_display(song):
-		base_song={
-			"title": _("Unknown Title"),
-			"track": "",
-			"disc": "",
-			"artist": "",
-			"album": "",
-			"duration": "0.0",
-			"date": "",
-			"genre": ""
-		}
-		if "range" in song:  # translate .cue 'range' to 'duration' if needed (unneeded since MPD 0.22.4)
-			start, end=song["range"].split("-")
-			if start != "" and end != "":
-				base_song["duration"]=str((float(end)-float(start)))
-		base_song.update(song)
-		base_song["human_duration"]=ClientHelper.seconds_to_display_time(int(float(base_song["duration"])))
+	def prepare_song_for_display(song):
+		base_song=Song(song)
+		base_song["human_duration"]=ClientHelper.seconds_to_display_time(base_song["duration"])
+		# TODO: appending as a set?
 		for tag in ("disc", "track"):  # remove confusing multiple tags
 			if tag in song:
 				if isinstance(song[tag], list):
@@ -1574,7 +1557,7 @@ class SongPopover(Gtk.Popover):
 		window=self.get_toplevel()
 		self._scroll.set_max_content_height(window.get_size()[1]//2)
 		self._store.clear()
-		song=ClientHelper.song_to_str_dict(self._client.get_metadata(uri))
+		song=Song(self._client.get_metadata(uri))
 		song.pop("time", None)
 		for tag, value in song.items():
 			if tag == "duration":
@@ -1785,7 +1768,7 @@ class AlbumPopover(Gtk.Popover):
 			genre_filter=("genre", genre)
 		songs=self._client.find("album", album, "date", date, self._settings.get_artist_type(), album_artist, *genre_filter)
 		for s in songs:
-			song=ClientHelper.song_to_list_dict(ClientHelper.pepare_song_for_display(s))
+			song=ClientHelper.song_to_list_dict(ClientHelper.prepare_song_for_display(s))
 			track=song["track"][0]
 			title=(", ".join(song["title"]))
 			# only show artists =/= albumartist
@@ -1966,7 +1949,11 @@ class SearchWindow(Gtk.Box):
 			self._stop_flag=True
 			self._pending.append(self._on_reconnected)
 
+
 	def _search(self, *args):
+		# TODO: rm
+		import time
+
 		if self._done:
 			self._done=False
 			self._songs_view.clear()
@@ -1979,29 +1966,37 @@ class SearchWindow(Gtk.Box):
 				else:
 					search_tag=self._tag_combo_box.get_active_text()
 				search_text=self.search_entry.get_text()
-				stripe_size=100
+				# requesting tags=["Track", "Title", "Artist", "Album"],
+				# 25K results request is approx. below 7MiB
+				# 5K is responsive enough
+				# bottleneck is at ListStore.append
+				stripe_size=5000
 				try:  # client cloud meanwhile disconnect
+					# reduce request size
+					self._client.command_list_ok_begin()
+					self._client.tagtypes("clear")
+					for tag in ["Track", "Title", "Artist", "Album"]:
+						self._client.tagtypes("enable", tag)
+					self._client.command_list_end()
 					songs=self._client.search(search_tag, search_text, "window", f"0:{stripe_size}")
 				except MPDBase.ConnectionError:
 					self._done_callback()
 					return
 				stripe_start=stripe_size
 				while songs:
+					be = time.time()
 					hits+=len(songs)
 					for s in songs:
 						if self._stop_flag:
 							self._done_callback()
 							return
-						song=ClientHelper.song_to_str_dict(ClientHelper.pepare_song_for_display(s))
-						try:
-							int_track=int(song["track"])
-						except:
-							int_track=0
-						self._store.append([
+						song=ClientHelper.prepare_song_for_display(s)
+						# optimization from https://mail.gnome.org/archives/python-hackers-list/2014-January/msg00004.html
+						self._store.insert_with_valuesv(-1, range(7), [
 								song["track"], song["title"],
 								song["artist"], song["album"],
 								song["human_duration"], song["file"],
-								int_track
+								int(song["track"])
 						])
 					self.search_entry.progress_pulse()
 					self._hits_label.set_text(ngettext("{hits} hit", "{hits} hits", hits).format(hits=hits))
@@ -2014,8 +2009,11 @@ class SearchWindow(Gtk.Box):
 						self._done_callback()
 						return
 					stripe_start+=stripe_size
+					en = time.time()
+					print(f"elapsed while block: {en-be}")
 			if hits > 0:
 				self._action_bar.set_sensitive(True)
+			self._client.tagtypes("all") # reset tagtypes to default
 			self._done_callback()
 		elif not self._search in self._pending:
 			self._stop_flag=True
@@ -3030,7 +3028,7 @@ class PlaylistWindow(Gtk.Overlay):
 			self._treeview.freeze_child_notify()
 			self._set_playlist_info("")
 			for s in songs:
-				song=ClientHelper.song_to_str_dict(ClientHelper.pepare_song_for_display(s))
+				song=ClientHelper.prepare_song_for_display(s)
 				try:
 					treeiter=self._store.get_iter(song["pos"])
 					self._store.set(treeiter,
@@ -3985,7 +3983,7 @@ class MainWindow(Gtk.ApplicationWindow):
 			else:
 				self.set_title("mpdevil")
 		else:
-			song=ClientHelper.song_to_str_dict(ClientHelper.pepare_song_for_display(song))
+			song=ClientHelper.prepare_song_for_display(song)
 			if song["date"] == "":
 				date=""
 			else:

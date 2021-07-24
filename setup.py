@@ -11,6 +11,7 @@ DistUtilsExtra.auto.setup(
 	url="https://github.com/SoongNoonien/mpdevil",
 	license='GPL-3.0',
 	data_files=[
+		('bin/', ['bin/structures.py']), # TODO
 		('share/metainfo/', ['data/org.mpdevil.mpdevil.appdata.xml']),
 		('share/icons/hicolor/16x16/apps/', ['data/icons/16x16/org.mpdevil.mpdevil.png']),
 		('share/icons/hicolor/24x24/apps/', ['data/icons/24x24/org.mpdevil.mpdevil.png']),
@@ -26,4 +27,3 @@ DistUtilsExtra.auto.setup(
 		('share/icons/hicolor/scalable/status/', ['data/icons/scalable/org.mpdevil.mpdevil-consume-symbolic-rtl.svg']),
 	],
 )
-
