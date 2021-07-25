@@ -13,8 +13,6 @@ class Song(collections.UserDict): # pylint: disable=too-many-ancestors
     def __setitem__(self, key, value):
         if isinstance(value, list):
             self.data[key] = ", ".join(value)
-        elif key == 'track':
-            self.data[key] = int(value)
         else:
             self.data[key] = value
 
