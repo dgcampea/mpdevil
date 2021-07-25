@@ -67,6 +67,8 @@ class Song(collections.UserDict): # pylint: disable=too-many-ancestors
         elif key == 'human_last-modified':
             cache = True
             value = Song.format_last_modified(self['last-modified'])
+        elif key == "disc":
+            value = 1
         else:
             value = ""
 

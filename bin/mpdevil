@@ -464,8 +464,11 @@ class ClientHelper():
 		return return_song
 
 	def calc_display_duration(songs):
-		duration=sum([Song(song)['duration'] for song in songs]) # TODO SONG
-		return Song.seconds_to_display_time(duration)
+		try:
+			duration_str=Song.seconds_to_display_time(sum([Song(song)['duration'] for song in songs])) # TODO SONG
+		except TypeError:
+			duration_str="––∶––"
+		return duration_str
 
 	def binary_to_pixbuf(binary, size):
 		loader=GdkPixbuf.PixbufLoader()
@@ -2336,9 +2339,9 @@ class AlbumWindow(FocusFrame):
 			# temporarily display all albums with fallback cover
 			size=self._settings.get_int("album-cover")
 			fallback_cover=GdkPixbuf.Pixbuf.new_from_file_at_size(FALLBACK_COVER, size, size)
-			for i, album in enumerate(albums):
+			for i, album in enumerate(albums):	# TODO: refactor structure
 				# tooltip
-				duration=ClientHelper.seconds_to_display_time(int(album["duration"]))
+				duration=Song.seconds_to_display_time(int(album["duration"]))
 				length=int(album["length"])
 				tooltip=ngettext("{number} song ({duration})", "{number} songs ({duration})", length).format(
 					number=length, duration=duration)
@@ -2995,7 +2998,7 @@ class PlaylistWindow(Gtk.Overlay):
 					treeiter=self._store.get_iter(song["pos"])
 					self._store.set(treeiter,
 						0, song["track"],
-						1, song["disc"],
+						1, str(song["disc"]),
 						2, song["title"],
 						3, song["artist"],
 						4, song["album"],
@@ -3004,16 +3007,16 @@ class PlaylistWindow(Gtk.Overlay):
 						7, song["genre"],
 						8, song["file"],
 						9, Pango.Weight.BOOK,
-						10, float(song["duration"])
+						10, song["duration"]
 					)
 				except:
 					self._store.append([
-						song["track"], song["disc"],
+						song["track"], str(song["disc"]),
 						song["title"], song["artist"],
 						song["album"], song["human_duration"],
 						song["date"], song["genre"],
 						song["file"], Pango.Weight.BOOK,
-						float(song["duration"])
+						song['duration']
 					])
 			self._treeview.thaw_child_notify()
 		for i in reversed(range(int(self._client.status()["playlistlength"]), len(self._store))):
