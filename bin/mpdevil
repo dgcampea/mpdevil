@@ -446,16 +446,6 @@ class MPRISInterface:  # TODO emit Seeked if needed
 ######################
 
 class ClientHelper():
-	def seconds_to_display_time(seconds):
-		# discard fractional part
-		delta=datetime.timedelta(seconds=int(float(seconds)))
-		if delta.days > 0:
-			days=ngettext("{days} day", "{days} days", delta.days).format(days=delta.days)
-			time_string=f"{days}, {str(delta - datetime.timedelta(delta.days))}"
-		else:
-			time_string=str(delta).lstrip("0").lstrip(":")
-		return time_string.replace(":", "∶")  # use 'ratio' as delimiter
-
 	def convert_audio_format(audio_format):
 		# see: https://www.musicpd.org/doc/html/user.html#audio-output-format
 		samplerate, bits, channels=audio_format.split(":")
@@ -490,19 +480,9 @@ class ClientHelper():
 				return_song[tag]=[value]
 		return return_song
 
-	def prepare_song_for_display(song):
-		base_song=song
-		base_song["human_duration"]=ClientHelper.seconds_to_display_time(base_song["duration"])
-		# TODO: appending as a set?
-		for tag in ("disc", "track"):  # remove confusing multiple tags
-			if tag in song:
-				if isinstance(song[tag], list):
-					base_song[tag]=song[tag][0]
-		return base_song
-
 	def calc_display_duration(songs):
-		duration=sum([float(song.get("duration", 0.0)) for song in songs])
-		return ClientHelper.seconds_to_display_time(int(duration))
+		duration=sum([Song(song)['duration'] for song in songs]) # TODO SONG
+		return Song.seconds_to_display_time(duration)
 
 	def binary_to_pixbuf(binary, size):
 		loader=GdkPixbuf.PixbufLoader()
@@ -1355,7 +1335,7 @@ class ServerStats(Gtk.Dialog):
 		stats=client.stats()
 		stats["protocol"]=str(client.mpd_version)
 		for key in ("uptime","playtime","db_playtime"):
-			stats[key]=ClientHelper.seconds_to_display_time(int(stats[key]))
+			stats[key]=Song.seconds_to_display_time(int(stats[key]))
 		stats["db_update"]=str(datetime.datetime.fromtimestamp(int(stats["db_update"]))).replace(":", "∶")
 
 		for i, key in enumerate(("protocol","uptime","playtime","db_update","db_playtime","artists","albums","songs")):
@@ -1558,10 +1538,13 @@ class SongPopover(Gtk.Popover):
 		self._scroll.set_max_content_height(window.get_size()[1]//2)
 		self._store.clear()
 		song=Song(self._client.get_metadata(uri))
-		song.pop("time", None)
+		try: 		# TODO: python bug?
+			song.pop("time", None)
+		except KeyError:
+			pass
 		for tag, value in song.items():
 			if tag == "duration":
-				self._store.append([tag+":", ClientHelper.seconds_to_display_time(int(float(value))), locale.str(float(value))])
+				self._store.append([tag+":", Song.seconds_to_display_time(value), locale.str(float(value))])
 			elif tag == "last-modified":
 				time=datetime.datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
 				self._store.append([tag+":", time.strftime("%a %d %B %Y, %H∶%M UTC"), value])
@@ -1768,7 +1751,7 @@ class AlbumPopover(Gtk.Popover):
 			genre_filter=("genre", genre)
 		songs=self._client.find("album", album, "date", date, self._settings.get_artist_type(), album_artist, *genre_filter)
 		for s in songs:
-			song=ClientHelper.song_to_list_dict(ClientHelper.prepare_song_for_display(s))
+			song=ClientHelper.song_to_list_dict(Song(s)) # TODO SONG
 			track=song["track"][0]
 			title=(", ".join(song["title"]))
 			# only show artists =/= albumartist
@@ -1986,11 +1969,10 @@ class SearchWindow(Gtk.Box):
 				while songs:
 					be = time.time()
 					hits+=len(songs)
-					for s in songs:
+					for song in songs:
 						if self._stop_flag:
 							self._done_callback()
 							return
-						song=ClientHelper.prepare_song_for_display(s)
 						# optimization from https://mail.gnome.org/archives/python-hackers-list/2014-January/msg00004.html
 						self._store.insert_with_valuesv(-1, range(7), [
 								song["track"], song["title"],
@@ -3028,7 +3010,7 @@ class PlaylistWindow(Gtk.Overlay):
 			self._treeview.freeze_child_notify()
 			self._set_playlist_info("")
 			for s in songs:
-				song=ClientHelper.prepare_song_for_display(Song(s)) # TODO: SONG
+				song=Song(s) # TODO: SONG
 				try:
 					treeiter=self._store.get_iter(song["pos"])
 					self._store.set(treeiter,
@@ -3061,7 +3043,7 @@ class PlaylistWindow(Gtk.Overlay):
 		if playlist_length == 0:
 			self._set_playlist_info("")
 		else:
-			duration_human_readable=ClientHelper.seconds_to_display_time(int(sum([row[10] for row in self._store])))
+			duration_human_readable=Song.seconds_to_display_time(int(sum([row[10] for row in self._store])))
 			translated_string=ngettext("{number} song ({duration})", "{number} songs ({duration})", playlist_length)
 			self._set_playlist_info(translated_string.format(number=playlist_length, duration=duration_human_readable))
 		self._refresh_selection()
@@ -3304,8 +3286,8 @@ class SeekBar(Gtk.Box):
 		self._adjustment.set_upper(duration)
 		if self._update:
 			self._scale.set_value(elapsed)
-			self._elapsed.set_text(ClientHelper.seconds_to_display_time(int(elapsed)))
-			self._rest.set_text("-"+ClientHelper.seconds_to_display_time(int(duration-elapsed)))
+			self._elapsed.set_text(Song.seconds_to_display_time(elapsed))
+			self._rest.set_text("-"+Song.seconds_to_display_time(duration-elapsed))
 		self._scale.set_fill_level(elapsed)
 
 	def _disable(self, *args):
@@ -3343,8 +3325,8 @@ class SeekBar(Gtk.Box):
 				elapsed=duration
 			else:
 				elapsed=value
-			self._elapsed.set_text(ClientHelper.seconds_to_display_time(int(elapsed)))
-			self._rest.set_text("-"+ClientHelper.seconds_to_display_time(int(duration-elapsed)))
+			self._elapsed.set_text(Song.seconds_to_display_time(elapsed))
+			self._rest.set_text("-"+Song.seconds_to_display_time(duration-elapsed))
 			self._jumped=True
 
 	def _on_elapsed_button_release_event(self, widget, event):
@@ -3983,7 +3965,6 @@ class MainWindow(Gtk.ApplicationWindow):
 			else:
 				self.set_title("mpdevil")
 		else:
-			song=ClientHelper.prepare_song_for_display(song)
 			if song["date"] == "":
 				date=""
 			else:

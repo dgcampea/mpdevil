@@ -4,7 +4,9 @@ mpd.MPDClient wrapper for mpdevil
 
 import collections
 import logging
-from gettext import gettext as _
+from gettext import gettext as _, ngettext
+from typing import Union
+import datetime
 import mpd
 
 
@@ -28,6 +30,8 @@ class Song(collections.UserDict): # pylint: disable=too-many-ancestors
     def __setitem__(self, key, value):
         if isinstance(value, list):
             self.data[key] = ", ".join(value)
+        if key == 'duration':
+            self.data[key] = float(value)
         else:
             self.data[key] = value
 
@@ -40,6 +44,29 @@ class Song(collections.UserDict): # pylint: disable=too-many-ancestors
             value = 0.0
         elif key == 'track':
             value = "0"
+        elif key == 'human_duration':
+            if self.get('duration') is None:
+                value = "––∶––"
+            else:
+                value = Song.seconds_to_display_time(self['duration'])
+            self.data[key] = value  # cache this
         else:
             value = ""
+
         return value
+
+    @staticmethod
+    def seconds_to_display_time(seconds : Union[int, str, float]):
+        """
+        Convert seconds to [D day[s], ][H]H:MM]
+        Similar to str(datetime.timedelta()) but is localized
+        and anything after minutes is truncated
+        """
+		# discard fractional part
+        delta=datetime.timedelta(seconds=int(seconds))
+        if delta.days > 0:
+            days=ngettext("{days} day", "{days} days", delta.days).format(days=delta.days)
+            time_string=f"{days}, {str(delta - datetime.timedelta(delta.days))}"
+        else:
+            time_string=str(delta).lstrip("0").lstrip(":")
+        return time_string.replace(":", "∶")  # use 'ratio' as delimiter
