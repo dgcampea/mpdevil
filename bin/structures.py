@@ -1,14 +1,29 @@
 """
-data structures for MPD
+mpd.MPDClient wrapper for mpdevil
 """
 
 import collections
 import logging
 from gettext import gettext as _
+import mpd
+
+
+class MPDClient(mpd.MPDClient): # pylint: disable=too-few-public-methods
+    """mpdevil wrapper for MPDClient
+    """
+
+    def search(self, *args):
+        """override MPDClient song representation
+        """
+        x = super().search(*args)
+        if isinstance(x, list):
+            return [Song(s) for s in x]
+        else:
+            return Song(x)
 
 
 class Song(collections.UserDict): # pylint: disable=too-many-ancestors
-    """dict representing a MPD Song
+    """dict representing a MPD Song for mpdevil usage
     """
     def __setitem__(self, key, value):
         if isinstance(value, list):

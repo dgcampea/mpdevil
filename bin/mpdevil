@@ -21,7 +21,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Notify", "0.7")
 from gi.repository import Gtk, Gio, Gdk, GdkPixbuf, Pango, GObject, GLib, Notify
-from mpd import MPDClient, base as MPDBase
+from mpd import base as MPDBase
 import requests
 from bs4 import BeautifulSoup
 import threading
@@ -491,7 +491,7 @@ class ClientHelper():
 		return return_song
 
 	def prepare_song_for_display(song):
-		base_song=Song(song)
+		base_song=song
 		base_song["human_duration"]=ClientHelper.seconds_to_display_time(base_song["duration"])
 		# TODO: appending as a set?
 		for tag in ("disc", "track"):  # remove confusing multiple tags
@@ -3028,7 +3028,7 @@ class PlaylistWindow(Gtk.Overlay):
 			self._treeview.freeze_child_notify()
 			self._set_playlist_info("")
 			for s in songs:
-				song=ClientHelper.prepare_song_for_display(s)
+				song=ClientHelper.prepare_song_for_display(Song(s)) # TODO: SONG
 				try:
 					treeiter=self._store.get_iter(song["pos"])
 					self._store.set(treeiter,
@@ -3975,7 +3975,7 @@ class MainWindow(Gtk.ApplicationWindow):
 		action.set_state(param)
 
 	def _on_song_changed(self, *args):
-		song=self._client.currentsong()
+		song=Song(self._client.currentsong())	# TODO SONG
 		if song == {}:
 			if self._use_csd:
 				self.set_title("mpdevil")
