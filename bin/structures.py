@@ -36,8 +36,10 @@ class Song(collections.UserDict): # pylint: disable=too-many-ancestors
     def __setitem__(self, key, value):
         if isinstance(value, list):
             self.data[key] = ", ".join(value)
-        if key == 'duration':
+        elif key == 'duration':
             self.data[key] = float(value)
+        elif key == 'disc':
+            self.data[key] = int(value)
         else:
             self.data[key] = value
 
@@ -80,7 +82,7 @@ class Song(collections.UserDict): # pylint: disable=too-many-ancestors
         and anything after minutes is truncated
         """
         # discard fractional part
-        delta=datetime.timedelta(seconds=int(seconds))
+        delta=datetime.timedelta(seconds=int(float(seconds)))
         if delta.days > 0:
             days=ngettext("{days} day", "{days} days", delta.days).format(days=delta.days)
             time_string=f"{days}, {str(delta - datetime.timedelta(delta.days))}"
