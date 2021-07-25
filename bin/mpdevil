@@ -376,30 +376,29 @@ class MPRISInterface:  # TODO emit Seeked if needed
 		Translate metadata returned by MPD to the MPRIS v2 syntax.
 		http://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata
 		"""
-		mpd_meta=self._client.currentsong()  # raw values needed for cover
-		song=ClientHelper.song_to_list_dict(mpd_meta)
+		song=self._client.currentsong()  # raw values needed for cover
 		self._metadata={}
 		for tag, xesam_tag in (("album","album"),("title","title"),("date","contentCreated")):
 			if tag in song:
-				self._metadata[f"xesam:{xesam_tag}"]=GLib.Variant("s", song[tag][0])
+				self._metadata[f"xesam:{xesam_tag}"]=GLib.Variant("s", song[tag])
 		for tag, xesam_tag in (("track","trackNumber"),("disc","discNumber")):
 			if tag in song:
-				self._metadata[f"xesam:{xesam_tag}"]=GLib.Variant("i", int(song[tag][0]))
+				self._metadata[f"xesam:{xesam_tag}"]=GLib.Variant("i", int(song[tag]))
 		for tag, xesam_tag in (("albumartist","albumArtist"),("artist","artist"),("composer","composer"),("genre","genre")):
 			if tag in song:
-				self._metadata[f"xesam:{xesam_tag}"]=GLib.Variant("as", song[tag])
+				self._metadata[f"xesam:{xesam_tag}"]=GLib.Variant("as", song[tag].split(", "))  # TODO: Song() has these merged, either create copy or unwrap here
 		if "id" in song:
-			self._metadata["mpris:trackid"]=GLib.Variant("o", f"{self._MPRIS_PATH}/Track/{song['id'][0]}")
+			self._metadata["mpris:trackid"]=GLib.Variant("o", f"{self._MPRIS_PATH}/Track/{song['id']}")
 		if "duration" in song:
-			self._metadata["mpris:length"]=GLib.Variant("x", float(song["duration"][0])*1000000)
+			self._metadata["mpris:length"]=GLib.Variant("x", song["duration"]*1000000)
 		if "file" in song:
-			song_file=song["file"][0]
+			song_file=song["file"]
 			if "://" in song_file:  # remote file
 				self._metadata["xesam:url"]=GLib.Variant("s", song_file)
 			else:
 				lib_path=self._settings.get_value("paths")[self._settings.get_int("active-profile")]
 				self._metadata["xesam:url"]=GLib.Variant("s", f"file://{os.path.join(lib_path, song_file)}")
-				cover_path=self._client.get_cover_path(mpd_meta)
+				cover_path=self._client.get_cover_path(song)
 				if cover_path is not None:
 					self._metadata["mpris:artUrl"]=GLib.Variant("s", f"file://{cover_path}")
 
