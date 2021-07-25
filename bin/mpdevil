@@ -358,7 +358,7 @@ class MPRISInterface:  # TODO emit Seeked if needed
 		if str(trackid).split("/")[-1] != song["id"]:
 			return
 		mpd_pos=position/1000000
-		if mpd_pos >= 0 and mpd_pos <= float(song["duration"]):
+		if mpd_pos >= 0 and mpd_pos <= song["duration"]:
 			self._client.seekcur(str(mpd_pos))
 
 	def OpenUri(self, uri):
@@ -371,7 +371,7 @@ class MPRISInterface:  # TODO emit Seeked if needed
 		)
 
 	# other methods
-	def _update_metadata(self):
+	def _update_metadata(self): #TODO currentsong
 		"""
 		Translate metadata returned by MPD to the MPRIS v2 syntax.
 		http://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata
@@ -3938,7 +3938,7 @@ class MainWindow(Gtk.ApplicationWindow):
 		action.set_state(param)
 
 	def _on_song_changed(self, *args):
-		song=Song(self._client.currentsong())	# TODO SONG
+		song=self._client.currentsong()
 		if song == {}:
 			if self._use_csd:
 				self.set_title("mpdevil")
@@ -3946,13 +3946,10 @@ class MainWindow(Gtk.ApplicationWindow):
 			else:
 				self.set_title("mpdevil")
 		else:
-			if song["date"] == "":
-				date=""
-			else:
-				date=f" ({song['date']})"
+			date = f" ({song['date']})" if song['date'] != "" else ""
 			if self._use_csd:
 				self.set_title(f"{song['title']} • {song['artist']}")
-				self._header_bar.set_subtitle(song["album"]+date)
+				self._header_bar.set_subtitle(f"{song['album']}{date}")
 			else:
 				self.set_title(f"{song['title']} • {song['artist']} • {song['album']}{date}")
 			if self._settings.get_boolean("send-notify"):

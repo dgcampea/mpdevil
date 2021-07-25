@@ -11,7 +11,7 @@ import datetime
 import mpd
 
 
-class MPDClient(mpd.MPDClient): # pylint: disable=too-few-public-methods
+class MPDClient(mpd.MPDClient):
     """mpdevil wrapper for MPDClient
     """
 
@@ -23,6 +23,11 @@ class MPDClient(mpd.MPDClient): # pylint: disable=too-few-public-methods
             return [Song(s) for s in x]
         else:
             return Song(x)
+
+    def currentsong(self, *args):
+        """override MPDClient song representation
+        """
+        return Song(super().currentsong(*args))
 
 
 class Song(collections.UserDict): # pylint: disable=too-many-ancestors
