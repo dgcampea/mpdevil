@@ -1542,16 +1542,16 @@ class SongPopover(Gtk.Popover):
 			song.pop("time", None)
 		except KeyError:
 			pass
-		for tag, value in song.items():
+		for tag in list(song.keys()): # TODO BLOCK
 			if tag == "duration":
-				self._store.append([tag+":", Song.seconds_to_display_time(value), locale.str(float(value))])
+				self._store.append([tag+":", song['human_duration'], locale.str(song[tag])])
 			elif tag == "last-modified":
-				time=datetime.datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
-				self._store.append([tag+":", time.strftime("%a %d %B %Y, %H∶%M UTC"), value])
+				time=datetime.datetime.strptime(song[tag], "%Y-%m-%dT%H:%M:%SZ") # TODO
+				self._store.append([tag+":", time.strftime("%a %d %B %Y, %H∶%M UTC"), song[tag]])
 			elif tag == "format":
-				self._store.append([tag+":", ClientHelper.convert_audio_format(value), value])
+				self._store.append([tag+":", ClientHelper.convert_audio_format(song[tag]), song[tag]]) # TODO
 			else:
-				self._store.append([tag+":", value, GLib.markup_escape_text(value)])
+				self._store.append([tag+":", song[tag], GLib.markup_escape_text(song[tag])])
 		abs_path=self._client.get_absolute_path(uri)
 		if abs_path is None:  # show open with button when song is on the same computer
 			self._open_button_revealer.set_reveal_child(False)
