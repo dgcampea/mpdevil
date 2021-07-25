@@ -446,22 +446,6 @@ class MPRISInterface:  # TODO emit Seeked if needed
 ######################
 
 class ClientHelper():
-	def convert_audio_format(audio_format):
-		# see: https://www.musicpd.org/doc/html/user.html#audio-output-format
-		samplerate, bits, channels=audio_format.split(":")
-		if bits == "f":
-			bits="32fp"
-		try:
-			int_chan=int(channels)
-		except:
-			int_chan=0
-		try:
-			freq=locale.str(int(samplerate)/1000)
-		except:
-			freq=samplerate
-		channels=ngettext("{channels} channel", "{channels} channels", int_chan).format(channels=int_chan)
-		return f"{freq} kHz • {bits} bit • {channels}"
-
 	def song_to_first_str_dict(song):  # extracts the first value of multiple value tags
 		return_song={}
 		for tag, value in song.items():
@@ -1542,16 +1526,13 @@ class SongPopover(Gtk.Popover):
 			song.pop("time", None)
 		except KeyError:
 			pass
-		for tag in list(song.keys()): # TODO BLOCK
-			if tag == "duration":
-				self._store.append([tag+":", song['human_duration'], locale.str(song[tag])])
-			elif tag == "last-modified":
-				time=datetime.datetime.strptime(song[tag], "%Y-%m-%dT%H:%M:%SZ") # TODO
-				self._store.append([tag+":", time.strftime("%a %d %B %Y, %H∶%M UTC"), song[tag]])
-			elif tag == "format":
-				self._store.append([tag+":", ClientHelper.convert_audio_format(song[tag]), song[tag]]) # TODO
+		for tag in list(song.keys()):
+			if tag in ['last-modified', 'format']:
+				self._store.append([f"{tag}:", song[f"human_{tag}"], song[tag]])
+			elif tag == "duration":
+				self._store.append([f"{tag}:", song[f"human_{tag}"], locale.str(song[tag])])
 			else:
-				self._store.append([tag+":", song[tag], GLib.markup_escape_text(song[tag])])
+				self._store.append([f"{tag}:", song[tag], GLib.markup_escape_text(song[tag])])
 		abs_path=self._client.get_absolute_path(uri)
 		if abs_path is None:  # show open with button when song is on the same computer
 			self._open_button_revealer.set_reveal_child(False)
@@ -3381,7 +3362,7 @@ class AudioFormat(Gtk.Box):
 		if audio_format is None:
 			self._format_label.set_markup("<small> </small>")
 		else:
-			self._format_label.set_markup(f"<small>{ClientHelper.convert_audio_format(audio_format)}</small>")
+			self._format_label.set_markup(f"<small>{Song.convert_audio_format(audio_format)}</small>")
 
 	def _on_bitrate(self, emitter, brate):
 		# handle unknown bitrates: https://github.com/MusicPlayerDaemon/MPD/issues/428#issuecomment-442430365
