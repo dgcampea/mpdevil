@@ -371,7 +371,7 @@ class MPRISInterface:  # TODO emit Seeked if needed
 		)
 
 	# other methods
-	def _update_metadata(self): #TODO currentsong
+	def _update_metadata(self):
 		"""
 		Translate metadata returned by MPD to the MPRIS v2 syntax.
 		http://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata
@@ -383,10 +383,13 @@ class MPRISInterface:  # TODO emit Seeked if needed
 				self._metadata[f"xesam:{xesam_tag}"]=GLib.Variant("s", song[tag])
 		for tag, xesam_tag in (("track","trackNumber"),("disc","discNumber")):
 			if tag in song:
-				self._metadata[f"xesam:{xesam_tag}"]=GLib.Variant("i", int(song[tag]))
+				self._metadata[f"xesam:{xesam_tag}"]=GLib.Variant("i", int(song[tag])) # TODO abstract to Song()
 		for tag, xesam_tag in (("albumartist","albumArtist"),("artist","artist"),("composer","composer"),("genre","genre")):
 			if tag in song:
-				self._metadata[f"xesam:{xesam_tag}"]=GLib.Variant("as", song[tag].split(", "))  # TODO: Song() has these merged, either create copy or unwrap here
+				if isinstance(song[tag], str):  # handle single valued (str) tags
+					self._metadata[f"xesam:{xesam_tag}"]=GLib.Variant("as", [song[tag]])
+				else:
+					self._metadata[f"xesam:{xesam_tag}"]=GLib.Variant("as", song[tag])
 		if "id" in song:
 			self._metadata["mpris:trackid"]=GLib.Variant("o", f"{self._MPRIS_PATH}/Track/{song['id']}")
 		if "duration" in song:
@@ -452,15 +455,6 @@ class ClientHelper():
 				return_song[tag]=value[0]
 			else:
 				return_song[tag]=value
-		return return_song
-
-	def song_to_list_dict(song):  # converts all values to lists
-		return_song={}
-		for tag, value in song.items():
-			if isinstance(value, list):
-				return_song[tag]=value
-			else:
-				return_song[tag]=[value]
 		return return_song
 
 	def calc_display_duration(songs):
@@ -1739,19 +1733,16 @@ class AlbumPopover(Gtk.Popover):
 		songs=self._client.find("album", album, "date", date, self._settings.get_artist_type(), album_artist, *genre_filter)
 		for s in songs:
 			song=Song(s) # FIXME Song()
-			track=song["track"]
-			title=(", ".join(song["title"]))
-			# only show artists =/= albumartist
-			try:
-				artists_copy = song.as_list('artist').remove(album_artist) #FIXME REFACT
-				artist=(", ".join(artists_copy)) # FIXME REFACT
+			try:  # only show artists =/= albumartist
+				artist = song['artist']
+				artist.remove(album_artist)
 			except:
 				artist = song['artist']
 			if artist == album_artist or artist == "":
 				title_artist=f"<b>{GLib.markup_escape_text(song['title'])}</b>"
 			else:
-				title_artist=f"<b>{GLib.markup_escape_text(song['title'])}</b> • {GLib.markup_escape_text(song.as_list('artist'))}"
-			self._store.append([track, title_artist, song["human_duration"], song["file"], title])
+				title_artist=f"<b>{GLib.markup_escape_text(song['title'])}</b> • {GLib.markup_escape_text(artist)}"
+			self._store.append([song['track'], title_artist, song['human_duration'], song['file'], song['title']])
 		self._songs_view.set_model(self._store)
 		self.popup()
 		self._songs_view.columns_autosize()
@@ -1963,7 +1954,7 @@ class SearchWindow(Gtk.Box):
 						# optimization from https://mail.gnome.org/archives/python-hackers-list/2014-January/msg00004.html
 						self._store.insert_with_valuesv(-1, range(7), [
 								song["track"], song["title"],
-								song["artist"], song["album"],
+								str(song["artist"]), song["album"],
 								song["human_duration"], song["file"],
 								int(song["track"])
 						])
@@ -3004,7 +2995,7 @@ class PlaylistWindow(Gtk.Overlay):
 						0, song["track"],
 						1, str(song["disc"]),
 						2, song["title"],
-						3, song["artist"],
+						3, str(song['artist']),
 						4, song["album"],
 						5, song["human_duration"],
 						6, song["date"],
@@ -3016,7 +3007,7 @@ class PlaylistWindow(Gtk.Overlay):
 				except:
 					self._store.append([
 						song["track"], str(song["disc"]),
-						song["title"], song["artist"],
+						song["title"], str(song['artist']),
 						song["album"], song["human_duration"],
 						song["date"], song["genre"],
 						song["file"], Pango.Weight.BOOK,

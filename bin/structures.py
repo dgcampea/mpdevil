@@ -33,9 +33,17 @@ class MPDClient(mpd.MPDClient):
 class Song(collections.UserDict): # pylint: disable=too-many-ancestors
     """dict representing a MPD Song for mpdevil usage
     """
+
+    class MPDList(collections.UserList): # pylint: disable=too-many-ancestors
+        """ implements __str__ method for multi-value MPD tags
+        """
+        def __str__(self):
+            return ", ".join(self.data)
+
     def __setitem__(self, key, value):
-        if isinstance(value, list):     # FIXME REFACT
-            self.data[key] = ", ".join(value)
+        if isinstance(value, list):
+            logging.debug("LIST FOR KEY=%s, VAL=%s, TRACK=%s", key, value, self.data['title'])
+            self.data[key] = Song.MPDList(value)
         elif key == 'duration':
             self.data[key] = float(value)
         elif key == 'disc':
@@ -43,13 +51,19 @@ class Song(collections.UserDict): # pylint: disable=too-many-ancestors
         else:
             self.data[key] = value
 
-    # FIXME REFACT
-    def as_list(self, key):
-        if isinstance(self.data[key], list) or True:   # FIXME REFACT condition
-            value = self.data[key].split(", ")
-        else:
-            value = None
-        return value
+    if __debug__:
+        def __getitem__(self, key):
+            try:
+                if isinstance(self.data[key], list):
+                    logging.debug("Key %s has type List", key)
+                elif isinstance(self.data[key], Song.MPDList):
+                    logging.debug("Key %s has type MPDList", key)
+
+                value = self.data[key]
+            except KeyError:
+                value = self.__missing__(key)
+
+            return value
     def __missing__(self, key):
         # Some keys are cached for performance
         cache = False
