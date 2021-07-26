@@ -1738,20 +1738,20 @@ class AlbumPopover(Gtk.Popover):
 			genre_filter=("genre", genre)
 		songs=self._client.find("album", album, "date", date, self._settings.get_artist_type(), album_artist, *genre_filter)
 		for s in songs:
-			song=ClientHelper.song_to_list_dict(Song(s)) # TODO SONG
-			track=song["track"][0]
+			song=Song(s) # FIXME Song()
+			track=song["track"]
 			title=(", ".join(song["title"]))
 			# only show artists =/= albumartist
 			try:
-				song["artist"].remove(album_artist)
+				artists_copy = song.as_list('artist').remove(album_artist) #FIXME REFACT
+				artist=(", ".join(artists_copy)) # FIXME REFACT
 			except:
-				pass
-			artist=(", ".join(song["artist"]))
+				artist = song['artist']
 			if artist == album_artist or artist == "":
-				title_artist=f"<b>{GLib.markup_escape_text(title)}</b>"
+				title_artist=f"<b>{GLib.markup_escape_text(song['title'])}</b>"
 			else:
-				title_artist=f"<b>{GLib.markup_escape_text(title)}</b> • {GLib.markup_escape_text(artist)}"
-			self._store.append([track, title_artist, song["human_duration"][0], song["file"][0], title])
+				title_artist=f"<b>{GLib.markup_escape_text(song['title'])}</b> • {GLib.markup_escape_text(song.as_list('artist'))}"
+			self._store.append([track, title_artist, song["human_duration"], song["file"], title])
 		self._songs_view.set_model(self._store)
 		self.popup()
 		self._songs_view.columns_autosize()

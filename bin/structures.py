@@ -34,7 +34,7 @@ class Song(collections.UserDict): # pylint: disable=too-many-ancestors
     """dict representing a MPD Song for mpdevil usage
     """
     def __setitem__(self, key, value):
-        if isinstance(value, list):
+        if isinstance(value, list):     # FIXME REFACT
             self.data[key] = ", ".join(value)
         elif key == 'duration':
             self.data[key] = float(value)
@@ -43,6 +43,13 @@ class Song(collections.UserDict): # pylint: disable=too-many-ancestors
         else:
             self.data[key] = value
 
+    # FIXME REFACT
+    def as_list(self, key):
+        if isinstance(self.data[key], list) or True:   # FIXME REFACT condition
+            value = self.data[key].split(", ")
+        else:
+            value = None
+        return value
     def __missing__(self, key):
         # Some keys are cached for performance
         cache = False
