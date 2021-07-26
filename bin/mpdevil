@@ -1534,7 +1534,11 @@ class SongPopover(Gtk.Popover):
 			elif tag == "duration":
 				self._store.append([f"{tag}:", song[f"human_{tag}"], locale.str(song[tag])])
 			else:
-				self._store.append([f"{tag}:", song[tag], GLib.markup_escape_text(song[tag])])
+				try: # TODO refact
+					self._store.append([f"{tag}:", song[tag], GLib.markup_escape_text(song[tag])])
+				except TypeError:
+					self._store.append([f"{tag}:", str(song[tag]), GLib.markup_escape_text(str(song[tag]))])
+
 		abs_path=self._client.get_absolute_path(uri)
 		if abs_path is None:  # show open with button when song is on the same computer
 			self._open_button_revealer.set_reveal_child(False)
