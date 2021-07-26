@@ -64,7 +64,7 @@ class Song(collections.UserDict): # pylint: disable=too-many-ancestors
             value = "0"
         elif key == 'human_duration':
             cache = True
-            if self.get('duration') is None:
+            if self.data.get('duration') is None:
                 value = "––∶––"
             else:
                 value = Song.seconds_to_display_time(self['duration'])
