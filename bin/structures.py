@@ -98,7 +98,7 @@ class Song(collections.UserDict): # pylint: disable=too-many-ancestors
         return value
 
     @staticmethod
-    def seconds_to_display_time(seconds : Union[int, str, float]):
+    def seconds_to_display_time(seconds : Union[int, str, float]) -> str:
         """
         Convert seconds to [D day[s], ][H]H:MM]
         Similar to str(datetime.timedelta()) but is localized

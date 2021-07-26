@@ -3952,7 +3952,7 @@ class MainWindow(Gtk.ApplicationWindow):
 			if self._settings.get_boolean("send-notify"):
 				if not self.is_active() and self._client.status()["state"] == "play":
 					self._notify.close()  # clear previous notifications
-					self._notify.update(song["title"], f"{song['artist']}\n{song['album']}{date}")
+					self._notify.update(song['title'], f"{song['artist']}\n{song['album']}{date}")
 					pixbuf=self._client.get_cover(song, 400)
 					self._notify.set_image_from_pixbuf(pixbuf)
 					self._notify.show()
