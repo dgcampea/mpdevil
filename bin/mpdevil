@@ -2528,7 +2528,8 @@ class Browser(Gtk.Paned):
 				else:
 					artist=song['artist']
 			# deactivate genre filter to show all artists (if needed)
-			if self._genre_select.get_selected() not in song['genre'] or force:
+			genre_selected=self._genre_select.get_selected()
+			if str(genre_selected) not in song['genre'] or force:
 				self._genre_select.deactivate()
 			# select artist
 			if self._artist_window.get_selected() is None and not force:  # all artists selected
