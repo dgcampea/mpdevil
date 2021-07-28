@@ -3944,12 +3944,13 @@ class MainWindow(Gtk.ApplicationWindow):
 				album_str = f"{song['album']} ({song['date']})".replace(" ()", "")
 			if self._use_csd:
 				self.set_title(" • ".join(
-					filter(None, (song['title'], song['artist']))
-					))
+					filter(None,
+						(song['title'], str(song['artist']))
+					)))
 				self._header_bar.set_subtitle(album_str)
 			else:
 				self.set_title(" • ".join(
-					filter(None, (song['title'], song['artist'], album_str))
+					filter(None, (song['title'], str(song['artist']), album_str))
 					))
 			if self._settings.get_boolean("send-notify"):
 				if not self.is_active() and self._client.status()["state"] == "play":
