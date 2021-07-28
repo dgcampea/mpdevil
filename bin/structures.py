@@ -46,7 +46,7 @@ class Song(collections.UserDict): # pylint: disable=too-many-ancestors
             self.data[key] = Song.MPDList(value)
         elif key == 'duration':
             self.data[key] = float(value)
-        elif key == 'disc':
+        elif key in ('disc', 'track'):
             self.data[key] = int(value)
         else:
             self.data[key] = value
@@ -75,7 +75,7 @@ class Song(collections.UserDict): # pylint: disable=too-many-ancestors
             logging.warning("Duration not found for track: %s", self['file'])
             value = 0.0
         elif key == 'track':
-            value = "0"
+            value = 0
         elif key == 'human_duration':
             cache = True
             if self.data.get('duration') is None:

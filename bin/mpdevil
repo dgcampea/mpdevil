@@ -383,7 +383,7 @@ class MPRISInterface:  # TODO emit Seeked if needed
 				self._metadata[f"xesam:{xesam_tag}"]=GLib.Variant("s", song[tag])
 		for tag, xesam_tag in (("track","trackNumber"),("disc","discNumber")):
 			if tag in song:
-				self._metadata[f"xesam:{xesam_tag}"]=GLib.Variant("i", int(song[tag])) # TODO abstract to Song()
+				self._metadata[f"xesam:{xesam_tag}"]=GLib.Variant("i", song[tag])
 		for tag, xesam_tag in (("albumartist","albumArtist"),("artist","artist"),("composer","composer"),("genre","genre")):
 			if tag in song:
 				if isinstance(song[tag], str):  # handle single valued (str) tags
@@ -1528,10 +1528,7 @@ class SongPopover(Gtk.Popover):
 			elif tag == "duration":
 				self._store.append([f"{tag}:", song[f"human_{tag}"], locale.str(song[tag])])
 			else:
-				try: # TODO refact
-					self._store.append([f"{tag}:", song[tag], GLib.markup_escape_text(song[tag])])
-				except TypeError:
-					self._store.append([f"{tag}:", str(song[tag]), GLib.markup_escape_text(str(song[tag]))])
+				self._store.append([f"{tag}:", str(song[tag]), GLib.markup_escape_text(str(song[tag]))])
 
 		abs_path=self._client.get_absolute_path(uri)
 		if abs_path is None:  # show open with button when song is on the same computer
@@ -1685,7 +1682,7 @@ class AlbumPopover(Gtk.Popover):
 
 		# songs window
 		# (track, title (artist), duration, file, search text)
-		self._store=Gtk.ListStore(str, str, str, str, str)
+		self._store=Gtk.ListStore(int, str, str, str, str)
 		songs_window=SongsWindow(self._client, self._store, 3, popover_mode=True)
 
 		# scroll
@@ -1806,7 +1803,7 @@ class SearchWindow(Gtk.Box):
 
 		# store
 		# (track, title, artist, album, duration, file, sort track)
-		self._store=Gtk.ListStore(str, str, str, str, str, str, int)
+		self._store=Gtk.ListStore(int, str, str, str, str, str, int)
 		self._store.set_default_sort_func(lambda *args: 0)
 
 		# songs window
@@ -1956,7 +1953,7 @@ class SearchWindow(Gtk.Box):
 								song["track"], song["title"],
 								str(song["artist"]), song["album"],
 								song["human_duration"], song["file"],
-								int(song["track"])
+								song["track"]
 						])
 					self.search_entry.progress_pulse()
 					self._hits_label.set_text(ngettext("{hits} hit", "{hits} hits", hits).format(hits=hits))
@@ -2796,7 +2793,7 @@ class PlaylistWindow(Gtk.Overlay):
 
 		# treeview
 		# (track, disc, title, artist, album, human duration, date, genre, file, weight, duration)
-		self._store=Gtk.ListStore(str, str, str, str, str, str, str, str, str, Pango.Weight, float)
+		self._store=Gtk.ListStore(int, int, str, str, str, str, str, str, str, Pango.Weight, float)
 		self._treeview=Gtk.TreeView(model=self._store,activate_on_single_click=True,reorderable=True,search_column=2,fixed_height_mode=True)
 		self._selection=self._treeview.get_selection()
 
@@ -2993,7 +2990,7 @@ class PlaylistWindow(Gtk.Overlay):
 					treeiter=self._store.get_iter(song["pos"])
 					self._store.set(treeiter,
 						0, song["track"],
-						1, str(song["disc"]),
+						1, song["disc"],
 						2, song["title"],
 						3, str(song['artist']),
 						4, song["album"],
@@ -3006,7 +3003,7 @@ class PlaylistWindow(Gtk.Overlay):
 					)
 				except:
 					self._store.append([
-						song["track"], str(song["disc"]),
+						song["track"], song["disc"],
 						song["title"], str(song['artist']),
 						song["album"], song["human_duration"],
 						song["date"], song["genre"],
