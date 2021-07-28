@@ -71,6 +71,9 @@ class Song(collections.UserDict): # pylint: disable=too-many-ancestors
         if key == 'title':
             cache = True
             value = _("Unknown Title")
+        elif key == 'album':
+            cache = True
+            value = _("Unknown Album")
         elif key == 'duration':
             logging.warning("Duration not found for track: %s", self['file'])
             value = 0.0
