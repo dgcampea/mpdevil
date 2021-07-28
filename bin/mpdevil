@@ -2058,6 +2058,9 @@ class SelectionList(Gtk.TreeView):
 		self.row_activated(path, self._column_item)
 
 	def select(self, item):
+		if isinstance(item, Song.MPDList):
+			item=item[0]
+
 		row_num=len(self._store)
 		for i in range(0, row_num):
 			path=Gtk.TreePath(i)
@@ -2146,11 +2149,11 @@ class ArtistWindow(SelectionList):
 		if genre is not None:
 			self.select_all()
 		else:
-			song=ClientHelper.song_to_first_str_dict(self._client.currentsong())
-			if song != {}:
+			song=self._client.currentsong()
+			if len(song) != 0:
 				artist=song.get(self._settings.get_artist_type())
 				if artist is None:
-					artist=song.get("artist", "")
+					artist=song['artist']
 				self.select(artist)
 			else:
 				if self.length() > 0:
