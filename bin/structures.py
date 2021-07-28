@@ -23,7 +23,7 @@ class Song(collections.UserDict): # pylint: disable=too-many-ancestors
 
     def __setitem__(self, key, value):
         if isinstance(value, list):
-            logging.debug("LIST FOR KEY=%s, VAL=%s, TRACK=%s", key, value, self.data['title'])
+            logging.debug("LIST FOR KEY=%s, VAL=%s, TRACK=%s", key, value, self['title'])
             self.data[key] = Song.MPDList(value)
         elif key == 'duration':
             self.data[key] = float(value)
