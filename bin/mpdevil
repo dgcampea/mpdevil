@@ -2516,16 +2516,19 @@ class Browser(Gtk.Paned):
 		self.pack2(self._albums_search_stack, True, False)
 
 	def _back_to_current_album(self, force=False):
-		song=ClientHelper.song_to_first_str_dict(self._client.currentsong())
-		if song != {}:
+		song=self._client.currentsong()
+		if len(song) != 0:
 			self.search_button.set_active(False)
 			self._genres_button.set_active(False)
 			# get artist name
 			artist=song.get(self._settings.get_artist_type())
 			if artist is None:
-				artist=song.get("artist", "")
+				if isinstance(song['artist'], Song.MPDList):
+					artist=song['artist'][0]
+				else:
+					artist=song['artist']
 			# deactivate genre filter to show all artists (if needed)
-			if song.get("genre", "") != self._genre_select.get_selected() or force:
+			if self._genre_select.get_selected() not in song['genre'] or force:
 				self._genre_select.deactivate()
 			# select artist
 			if self._artist_window.get_selected() is None and not force:  # all artists selected
@@ -2644,14 +2647,27 @@ class LyricsWindow(FocusFrame):
 	def disable(self, *args):
 		self._client.emitter.handler_block(self._song_changed)
 
-	def _get_lyrics(self, title, artist):
-		replaces=((" ", "+"),(".", "_"),("@", "_"),(",", "_"),(";", "_"),("&", "_"),("\\", "_"),("/", "_"),('"', "_"),("(", "_"),(")", "_"))
-		for char1, char2 in replaces:
-			title=title.replace(char1, char2)
-			artist=artist.replace(char1, char2)
-		req=requests.get(f"https://www.letras.mus.br/winamp.php?musica={title}&artista={artist}")
-		soup=BeautifulSoup(req.text, "html.parser")
-		soup=soup.find(id="letra-cnt")
+	def _get_lyrics(self, title, artists):
+
+		def replace_chars(input):
+			replaces=((" ", "+"),(".", "_"),("@", "_"),(",", "_"),(";", "_"),("&", "_"),("\\", "_"),("/", "_"),('"', "_"),("(", "_"),(")", "_"))
+			outval=input
+			for char1, char2 in replaces:
+				outval=outval.replace(char1, char2)
+
+			return outval
+
+		if not isinstance(artists, Song.MPDList):
+			artists = [artists]
+
+		title=replace_chars(title)
+		artists=map(replace_chars, artists)
+		for artist in artists:
+			req=requests.get(f"https://www.letras.mus.br/winamp.php?musica={title}&artista={artist}")
+			soup=BeautifulSoup(req.text, "html.parser")
+			soup=soup.find(id="letra-cnt")
+			if soup is not None:	# success
+				break
 		if soup is None:
 			raise ValueError("Not found")
 		paragraphs=[i for i in soup.children][1]  # remove unneded paragraphs (NavigableString)
@@ -2686,7 +2702,7 @@ class LyricsWindow(FocusFrame):
 			self._displayed_song_file=current_song["file"]
 			update_thread=threading.Thread(
 					target=self._display_lyrics,
-					kwargs={"current_song": ClientHelper.song_to_first_str_dict(current_song)},
+					kwargs={"current_song": current_song},
 					daemon=True
 			)
 			update_thread.start()
