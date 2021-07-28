@@ -11,25 +11,6 @@ import datetime
 import mpd
 
 
-class MPDClient(mpd.MPDClient):
-    """mpdevil wrapper for MPDClient
-    """
-
-    def search(self, *args):
-        """override MPDClient song representation
-        """
-        x = super().search(*args)
-        if isinstance(x, list):
-            return [Song(s) for s in x]
-        else:
-            return Song(x)
-
-    def currentsong(self, *args):
-        """override MPDClient song representation
-        """
-        return Song(super().currentsong(*args))
-
-
 class Song(collections.UserDict): # pylint: disable=too-many-ancestors
     """dict representing a MPD Song for mpdevil usage
     """
@@ -148,3 +129,36 @@ class Song(collections.UserDict): # pylint: disable=too-many-ancestors
         """
         time = datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ")  # read MPD date format
         return time.strftime("%a %d %B %Y, %H∶%M UTC")
+
+
+class MPDClient(mpd.MPDClient):
+    """mpdevil wrapper for MPDClient
+    """
+
+    def search(self, *args):
+        """override MPDClient song representation
+        """
+        x = super().search(*args)
+        if isinstance(x, list):
+            return [Song(s) for s in x]
+        else:
+            return Song(x)
+
+    def find(self, *args):
+        """override MPDClient song representation and arguments
+           override arguments:
+            list -> list[0]
+        """
+
+        converted_args = list(map(lambda x: x[0] if isinstance(x, (list, Song.MPDList)) else x,
+            args))
+        res = super().find(*converted_args)
+        if isinstance(res, list):
+            return [Song(s) for s in res]
+        else:
+            return Song(res)
+
+    def currentsong(self, *args) -> Song:
+        """override MPDClient song representation
+        """
+        return Song(super().currentsong(*args))

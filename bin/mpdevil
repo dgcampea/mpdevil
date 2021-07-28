@@ -27,6 +27,7 @@ from bs4 import BeautifulSoup
 import threading
 import datetime
 import os
+import pathlib
 import sys
 import re
 import collections.abc
@@ -655,12 +656,11 @@ class Client(MPDClient):
 		else:
 			return([])
 
-	def get_cover_path(self, raw_song):
+	def get_cover_path(self, song):
 		path=None
-		song=ClientHelper.song_to_first_str_dict(raw_song)
-		song_file=song.get("file")
+		song_file=pathlib.Path(song.get("file"))
+		lib_path=pathlib.Path(self._settings.get_lib_path())
 		active_profile=self._settings.get_int("active-profile")
-		lib_path=self._settings.get_lib_path()
 		if lib_path is not None:
 			regex_str=self._settings.get_value("regex")[active_profile]
 			if regex_str == "":
@@ -674,13 +674,14 @@ class Client(MPDClient):
 					print("illegal regex:", regex_str)
 					return (None, None)
 			if song_file is not None:
-				song_dir=os.path.join(lib_path, os.path.dirname(song_file))
-				if song_dir.endswith(".cue"):
-					song_dir=os.path.dirname(song_dir)  # get actual directory of .cue file
-				if os.path.exists(song_dir):
-					for f in os.listdir(song_dir):
-						if regex.match(f):
-							path=os.path.join(song_dir, f)
+				if song_file.parent.suffix == ".cue":
+					song_dir=lib_path / song_file.parents[1] # get actual directory of .cue file
+				else:
+					song_dir=lib_path / song_file.parent
+				if song_dir.exists():
+					for f in song_dir.iterdir():
+						if regex.match(f.as_posix()):
+							path=f.as_posix()
 							break
 		return path
 
@@ -2267,14 +2268,13 @@ class AlbumWindow(FocusFrame):
 
 	def scroll_to_current_album(self):
 		def callback():
-			song=ClientHelper.song_to_first_str_dict(self._client.currentsong())
-			album=song.get("album", "")
+			song=self._client.currentsong()
 			self._iconview.unselect_all()
 			row_num=len(self._store)
 			for i in range(0, row_num):
 				path=Gtk.TreePath(i)
 				treeiter=self._store.get_iter(path)
-				if self._store.get_value(treeiter, 4) == album:
+				if self._store.get_value(treeiter, 4) == song['album']:
 					self._iconview.set_cursor(path, None, False)
 					self._iconview.select_path(path)
 					self._iconview.scroll_to_path(path, True, 0, 0)
@@ -2715,14 +2715,14 @@ class CoverEventBox(Gtk.EventBox):
 				window.begin_move_drag(1, event.x_root, event.y_root, Gdk.CURRENT_TIME)
 		else:
 			if self._client.connected():
-				song=ClientHelper.song_to_first_str_dict(self._client.currentsong())
-				if song != {}:
+				song=self._client.currentsong()
+				if len(song) != 0:
 					try:
 						artist=song[self._settings.get_artist_type()]
 					except:
-						artist=song.get("artist", "")
-					album=song.get("album", "")
-					year=song.get("date", "")
+						artist=song['artist']
+					album=song['album']
+					year=song['date']
 					if event.button == 1 and event.type == Gdk.EventType.BUTTON_PRESS:
 						self._client.album_to_playlist(album, artist, year, None)
 					elif event.button == 1 and event.type == Gdk.EventType._2BUTTON_PRESS:
