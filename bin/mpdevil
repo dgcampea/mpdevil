@@ -3933,23 +3933,29 @@ class MainWindow(Gtk.ApplicationWindow):
 
 	def _on_song_changed(self, *args):
 		song=self._client.currentsong()
-		if song == {}:
+		if len(song) == 0:	# not playing any track
+			self.set_title("mpdevil")
 			if self._use_csd:
-				self.set_title("mpdevil")
 				self._header_bar.set_subtitle("")
-			else:
-				self.set_title("mpdevil")
 		else:
-			date = f" ({song['date']})" if song['date'] != "" else ""
-			if self._use_csd:
-				self.set_title(f"{song['title']} • {song['artist']}")
-				self._header_bar.set_subtitle(f"{song['album']}{date}")
+			if sys.version_info.minor >= 9:		# TODO: migrate to this
+				album_str = f"{song['album']} ({song['date']})".removesuffix(" ()")
 			else:
-				self.set_title(f"{song['title']} • {song['artist']} • {song['album']}{date}")
+				album_str = f"{song['album']} ({song['date']})".replace(" ()", "")
+			if self._use_csd:
+				self.set_title(" • ".join(
+					filter(None, (song['title'], song['artist']))
+					))
+				self._header_bar.set_subtitle(album_str)
+			else:
+				self.set_title(" • ".join(
+					filter(None, (song['title'], song['artist'], album_str))
+					))
 			if self._settings.get_boolean("send-notify"):
 				if not self.is_active() and self._client.status()["state"] == "play":
 					self._notify.close()  # clear previous notifications
-					self._notify.update(song['title'], f"{song['artist']}\n{song['album']}{date}")
+					self._notify.update(song['title'],
+						f"{song['artist']}\n{album_str}")
 					pixbuf=self._client.get_cover(song, 400)
 					self._notify.set_image_from_pixbuf(pixbuf)
 					self._notify.show()
